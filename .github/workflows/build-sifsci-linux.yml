@@ -26,11 +26,15 @@ jobs:
           sudo apt-get install -y generate-ninja
           sudo ./build/install-build-deps.sh --no-prompt
 
+      - name: Install depot_tools
+        run: |
+          git clone --depth=1 https://chromium.googlesource.com/chromium/tools/depot_tools.git "$HOME/depot_tools"
+          echo "$HOME/depot_tools" >> "$GITHUB_PATH"
+
       - name: Sync DEPS dependencies
         run: |
-          export PATH="$HOME/depot_tools:$PATH"
           cd "${GITHUB_WORKSPACE}/.."
-          cat > .gclient <<EOF
+          cat > .gclient <<EOF_GCLIENT
           solutions = [
             {
               "name": "sifscibrowser",
@@ -39,12 +43,11 @@ jobs:
               "custom_deps": {},
             },
           ]
-          EOF
+          EOF_GCLIENT
           gclient sync --no-history --with_branch_heads --with_tags
 
       - name: Create build directory
         run: |
-          export PATH="$HOME/depot_tools:$PATH"
           gn gen out/Sifsci --args='is_debug=false is_component_build=false symbol_level=0'
 
       - name: Build browser target
