@@ -1,0 +1,61 @@
+name: Build Sifsci Browser (Linux)
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/build-sifsci-linux.yml'
+      - 'chrome/app/theme/chromium/BRANDING'
+      - 'chrome/test/chromedriver/constants/BRANDING'
+      - 'docs/sifsci_branding.md'
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 360
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo ./build/install-build-deps.sh --no-prompt
+
+      - name: Create build directory
+        run: |
+          gn gen out/Sifsci --args='is_debug=false is_component_build=false symbol_level=0'
+
+      - name: Build browser target
+        run: |
+          autoninja -C out/Sifsci chrome
+
+      - name: Package runnable bundle
+        run: |
+          mkdir -p dist/Sifsci
+          rsync -a --prune-empty-dirs \
+            --include='*/' \
+            --include='chrome' \
+            --include='chrome_crashpad_handler' \
+            --include='*.so' \
+            --include='*.pak' \
+            --include='*.bin' \
+            --include='*.dat' \
+            --include='icudtl.dat' \
+            --include='snapshot_blob.bin' \
+            --include='v8_context_snapshot.bin' \
+            --include='locales/***' \
+            --include='resources/***' \
+            --exclude='*' \
+            out/Sifsci/ dist/Sifsci/
+          tar -C dist -czf dist/sifsci-linux.tar.gz Sifsci
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sifsci-linux
+          path: dist/sifsci-linux.tar.gz
+          if-no-files-found: error
