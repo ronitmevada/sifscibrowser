@@ -23,10 +23,28 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
+          sudo apt-get install -y generate-ninja
           sudo ./build/install-build-deps.sh --no-prompt
+
+      - name: Sync DEPS dependencies
+        run: |
+          export PATH="$HOME/depot_tools:$PATH"
+          cd "${GITHUB_WORKSPACE}/.."
+          cat > .gclient <<EOF
+          solutions = [
+            {
+              "name": "sifscibrowser",
+              "url": "https://github.com/${GITHUB_REPOSITORY}.git",
+              "managed": False,
+              "custom_deps": {},
+            },
+          ]
+          EOF
+          gclient sync --no-history --with_branch_heads --with_tags
 
       - name: Create build directory
         run: |
+          export PATH="$HOME/depot_tools:$PATH"
           gn gen out/Sifsci --args='is_debug=false is_component_build=false symbol_level=0'
 
       - name: Build browser target
