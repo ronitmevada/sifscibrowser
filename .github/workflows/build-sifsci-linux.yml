@@ -1,4 +1,4 @@
-name: Build Sifsci Browser (Linux)
+name: Build Sifsci Browser (Linux + Android)
 
 on:
   workflow_dispatch:
@@ -66,9 +66,58 @@ jobs:
             out/Sifsci/ dist/Sifsci/
           tar -C dist -czf dist/sifsci-linux.tar.gz Sifsci
 
-      - name: Upload artifact
+      - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
         with:
           name: sifsci-linux
           path: dist/sifsci-linux.tar.gz
+          if-no-files-found: error
+
+  build-android:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 360
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install Android build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y openjdk-17-jdk
+          sudo ./build/install-build-deps.sh --android --no-prompt
+
+      - name: Install depot_tools
+        run: |
+          git clone --depth=1 https://chromium.googlesource.com/chromium/tools/depot_tools.git "$HOME/depot_tools"
+          echo "$HOME/depot_tools" >> "$GITHUB_PATH"
+
+      - name: Sync DEPS dependencies
+        run: |
+          cd "${GITHUB_WORKSPACE}/.."
+          ln -sfn "${GITHUB_WORKSPACE}" src
+          python3 -c 'from pathlib import Path; Path(".gclient").write_text("solutions = [\n  {\n    \"name\": \"src\",\n    \"url\": \"https://github.com/${GITHUB_REPOSITORY}.git\",\n    \"managed\": False,\n    \"custom_deps\": {},\n  },\n]\n")'
+          gclient sync --no-history --with_branch_heads --with_tags
+
+      - name: Generate Android build files
+        run: |
+          gn gen out/SifsciAndroid --args='target_os="android" target_cpu="arm64" is_debug=false is_component_build=false symbol_level=0'
+
+      - name: Build Android APK and App Bundle
+        run: |
+          autoninja -C out/SifsciAndroid chrome_public_apk chrome_public_bundle
+
+      - name: Collect Android artifacts
+        run: |
+          mkdir -p dist/android
+          cp out/SifsciAndroid/apks/ChromePublic.apk dist/android/
+          cp out/SifsciAndroid/apks/ChromePublic.aab dist/android/
+
+      - name: Upload Android artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sifsci-android
+          path: dist/android
           if-no-files-found: error
