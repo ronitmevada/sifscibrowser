@@ -23,11 +23,12 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
+          sudo apt-get install -y generate-ninja
           sudo ./build/install-build-deps.sh --no-prompt
 
       - name: Create build directory
         run: |
-          gn gen out/Sifsci --args='is_debug=false is_component_build=false symbol_level=0'
+          /usr/bin/gn gen out/Sifsci --args='is_debug=false is_component_build=false symbol_level=0'
 
       - name: Build browser target
         run: |
