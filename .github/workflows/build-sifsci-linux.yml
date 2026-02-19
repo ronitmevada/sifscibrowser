@@ -36,6 +36,12 @@ jobs:
           git clone --depth 1 https://chromium.googlesource.com/chromium/tools/depot_tools.git $HOME/depot_tools
           echo "$HOME/depot_tools" >> $GITHUB_PATH
 
+
+      - name: Bootstrap depot_tools
+        run: |
+          $HOME/depot_tools/update_depot_tools --force
+          $HOME/depot_tools/gclient --version
+
       - name: Create build directory
         run: |
           $HOME/depot_tools/gn gen out/Sifsci --args='is_debug=false is_component_build=false symbol_level=0'
