@@ -32,7 +32,11 @@ jobs:
 
       - name: Build browser target
         run: |
-          ninja -C out/Sifsci chrome
+          if command -v autoninja >/dev/null 2>&1; then
+            autoninja -C out/Sifsci chrome
+          else
+            ninja -C out/Sifsci chrome
+          fi
 
       - name: Package runnable bundle
         run: |
