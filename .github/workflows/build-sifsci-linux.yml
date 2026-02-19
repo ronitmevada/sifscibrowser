@@ -19,7 +19,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          submodules: recursive
+
+
+      - name: Initialize required submodules
+        run: |
+          git submodule sync -- third_party/angle
+          git submodule update --init --depth 1 third_party/angle
 
       - name: Install build dependencies
         run: |
