@@ -30,19 +30,19 @@ jobs:
         run: |
           sudo apt-get update
           sudo ./build/install-build-deps.sh --no-prompt
-          sudo apt-get install -y generate-ninja ninja-build
+
+      - name: Install depot_tools (gn + autoninja)
+        run: |
+          git clone --depth 1 https://chromium.googlesource.com/chromium/tools/depot_tools.git $HOME/depot_tools
+          echo "$HOME/depot_tools" >> $GITHUB_PATH
 
       - name: Create build directory
         run: |
-          gn gen out/Sifsci --args='is_debug=false is_component_build=false symbol_level=0'
+          $HOME/depot_tools/gn gen out/Sifsci --args='is_debug=false is_component_build=false symbol_level=0'
 
       - name: Build browser target
         run: |
-          if command -v autoninja >/dev/null 2>&1; then
-            autoninja -C out/Sifsci chrome
-          else
-            ninja -C out/Sifsci chrome
-          fi
+          $HOME/depot_tools/autoninja -C out/Sifsci chrome
 
       - name: Package runnable bundle
         run: |
