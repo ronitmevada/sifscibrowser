@@ -1,4 +1,4 @@
-name: Build Sifsci Browser (Linux + Android)
+name: Build Sifsci Browser (Linux + Android + Windows)
 
 on:
   workflow_dispatch:
@@ -120,4 +120,62 @@ jobs:
         with:
           name: sifsci-android
           path: dist/android
+          if-no-files-found: error
+
+  build-windows:
+    runs-on: windows-2022
+    timeout-minutes: 360
+
+    steps:
+      - name: Checkout repository into src
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          path: src
+
+      - name: Install depot_tools
+        shell: pwsh
+        run: |
+          git clone --depth=1 https://chromium.googlesource.com/chromium/tools/depot_tools.git "$env:USERPROFILE\depot_tools"
+          "$env:USERPROFILE\depot_tools" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Sync DEPS dependencies
+        shell: pwsh
+        run: |
+          Set-Location "$env:GITHUB_WORKSPACE"
+          @"
+          solutions = [
+            {
+              "name": "src",
+              "url": "https://github.com/${env:GITHUB_REPOSITORY}.git",
+              "managed": False,
+              "custom_deps": {},
+            },
+          ]
+          "@ | Set-Content -Path .gclient -Encoding utf8
+          gclient sync --no-history --with_branch_heads --with_tags
+
+      - name: Generate Windows build files
+        shell: cmd
+        run: |
+          cd /d %GITHUB_WORKSPACE%\src
+          gn gen out\SifsciWin --args="is_debug=false is_component_build=false symbol_level=0 target_cpu=\"x64\""
+
+      - name: Build Windows browser target
+        shell: cmd
+        run: |
+          cd /d %GITHUB_WORKSPACE%\src
+          autoninja -C out\SifsciWin chrome
+
+      - name: Collect Windows artifact
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "$env:GITHUB_WORKSPACE\src\dist\windows" | Out-Null
+          Copy-Item "$env:GITHUB_WORKSPACE\src\out\SifsciWin\chrome.exe" "$env:GITHUB_WORKSPACE\src\dist\windows\SifsciBrowser.exe"
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sifsci-windows
+          path: src/dist/windows/SifsciBrowser.exe
           if-no-files-found: error
