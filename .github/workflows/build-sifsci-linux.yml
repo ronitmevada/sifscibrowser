@@ -1,4 +1,4 @@
-name: Build Sifsci Browser (Linux + Android + Windows)
+name: Build Sifsci Browser (Android)
 
 on:
   workflow_dispatch:
@@ -10,69 +10,6 @@ on:
       - 'docs/sifsci_branding.md'
 
 jobs:
-  build-linux:
-    runs-on: ubuntu-22.04
-    timeout-minutes: 360
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
-      - name: Install build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y generate-ninja
-          sudo ./build/install-build-deps.sh --no-prompt
-
-      - name: Install depot_tools
-        run: |
-          git clone --depth=1 https://chromium.googlesource.com/chromium/tools/depot_tools.git "$HOME/depot_tools"
-          echo "$HOME/depot_tools" >> "$GITHUB_PATH"
-
-      - name: Sync DEPS dependencies
-        run: |
-          cd "${GITHUB_WORKSPACE}/.."
-          ln -sfn "${GITHUB_WORKSPACE}" src
-          python3 -c 'from pathlib import Path; Path(".gclient").write_text("solutions = [\n  {\n    \"name\": \"src\",\n    \"url\": \"https://github.com/${GITHUB_REPOSITORY}.git\",\n    \"managed\": False,\n    \"custom_deps\": {},\n  },\n]\n")'
-          gclient sync --no-history --with_branch_heads --with_tags
-
-      - name: Create build directory
-        run: |
-          gn gen out/Sifsci --args='is_debug=false is_component_build=false symbol_level=0'
-
-      - name: Build browser target
-        run: |
-          autoninja -C out/Sifsci chrome
-
-      - name: Package runnable bundle
-        run: |
-          mkdir -p dist/Sifsci
-          rsync -a --prune-empty-dirs \
-            --include='*/' \
-            --include='chrome' \
-            --include='chrome_crashpad_handler' \
-            --include='*.so' \
-            --include='*.pak' \
-            --include='*.bin' \
-            --include='*.dat' \
-            --include='icudtl.dat' \
-            --include='snapshot_blob.bin' \
-            --include='v8_context_snapshot.bin' \
-            --include='locales/***' \
-            --include='resources/***' \
-            --exclude='*' \
-            out/Sifsci/ dist/Sifsci/
-          tar -C dist -czf dist/sifsci-linux.tar.gz Sifsci
-
-      - name: Upload Linux artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: sifsci-linux
-          path: dist/sifsci-linux.tar.gz
-          if-no-files-found: error
-
   build-android:
     runs-on: ubuntu-22.04
     timeout-minutes: 360
@@ -105,77 +42,18 @@ jobs:
         run: |
           gn gen out/SifsciAndroid --args='target_os="android" target_cpu="arm64" is_debug=false is_component_build=false symbol_level=0'
 
-      - name: Build Android APK and App Bundle
+      - name: Build Android APK
         run: |
-          autoninja -C out/SifsciAndroid chrome_public_apk chrome_public_bundle
+          autoninja -C out/SifsciAndroid chrome_public_apk
 
-      - name: Collect Android artifacts
+      - name: Collect Android APK artifact
         run: |
           mkdir -p dist/android
-          cp out/SifsciAndroid/apks/ChromePublic.apk dist/android/
-          cp out/SifsciAndroid/apks/ChromePublic.aab dist/android/
+          cp out/SifsciAndroid/apks/ChromePublic.apk dist/android/SifsciBrowser.apk
 
-      - name: Upload Android artifacts
+      - name: Upload Android APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: sifsci-android
-          path: dist/android
-          if-no-files-found: error
-
-  build-windows:
-    runs-on: windows-2022
-    timeout-minutes: 360
-
-    steps:
-      - name: Checkout repository into src
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          path: src
-
-      - name: Install depot_tools
-        shell: pwsh
-        run: |
-          git clone --depth=1 https://chromium.googlesource.com/chromium/tools/depot_tools.git "$env:USERPROFILE\depot_tools"
-          "$env:USERPROFILE\depot_tools" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-
-      - name: Sync DEPS dependencies
-        shell: pwsh
-        run: |
-          Set-Location "$env:GITHUB_WORKSPACE"
-          @"
-          solutions = [
-            {
-              "name": "src",
-              "url": "https://github.com/${env:GITHUB_REPOSITORY}.git",
-              "managed": False,
-              "custom_deps": {},
-            },
-          ]
-          "@ | Set-Content -Path .gclient -Encoding utf8
-          gclient sync --no-history --with_branch_heads --with_tags
-
-      - name: Generate Windows build files
-        shell: cmd
-        run: |
-          cd /d %GITHUB_WORKSPACE%\src
-          gn gen out\SifsciWin --args="is_debug=false is_component_build=false symbol_level=0 target_cpu=\"x64\""
-
-      - name: Build Windows browser target
-        shell: cmd
-        run: |
-          cd /d %GITHUB_WORKSPACE%\src
-          autoninja -C out\SifsciWin chrome
-
-      - name: Collect Windows artifact
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path "$env:GITHUB_WORKSPACE\src\dist\windows" | Out-Null
-          Copy-Item "$env:GITHUB_WORKSPACE\src\out\SifsciWin\chrome.exe" "$env:GITHUB_WORKSPACE\src\dist\windows\SifsciBrowser.exe"
-
-      - name: Upload Windows artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: sifsci-windows
-          path: src/dist/windows/SifsciBrowser.exe
+          name: sifsci-android-apk
+          path: dist/android/SifsciBrowser.apk
           if-no-files-found: error
