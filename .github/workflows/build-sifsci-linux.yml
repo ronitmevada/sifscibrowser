@@ -98,7 +98,7 @@ jobs:
         run: |
           cd "${GITHUB_WORKSPACE}/.."
           ln -sfn "${GITHUB_WORKSPACE}" src
-          python3 -c 'from pathlib import Path; Path(".gclient").write_text("solutions = [\n  {\n    \"name\": \"src\",\n    \"url\": \"https://github.com/${GITHUB_REPOSITORY}.git\",\n    \"managed\": False,\n    \"custom_deps\": {},\n  },\n]\n")'
+          python3 -c 'from pathlib import Path; Path(".gclient").write_text("solutions = [\n  {\n    \"name\": \"src\",\n    \"url\": \"https://github.com/${GITHUB_REPOSITORY}.git\",\n    \"managed\": False,\n    \"custom_deps\": {},\n  },\n]\ntarget_os = [\"android\"]\n")'
           gclient sync --no-history --with_branch_heads --with_tags
 
       - name: Generate Android build files
